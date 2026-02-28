@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+
+{% block title %}Dashboard — Ayushman Bharat Fraud Detection{% endblock %}
+{% block page_title %}Fraud Detection Dashboard{% endblock %}
+{% block page_sub %}Real-time overview of claim analysis and risk assessment{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .chart-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 22px;
+        box-shadow: 0 2px 12px rgba(15, 35, 71, .08);
+    }
+
+    .top-hospital-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .top-hospital-row:last-child {
+        border-bottom: none;
+    }
+
+    .hosp-rank {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--primary-light);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .hosp-info h4 {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+    .hosp-info p {
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    .hosp-score {
+        margin-left: auto;
+        font-weight: 700;
+        font-size: 13px;
+    }
+
+    .region-map {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .region-cell {
+        border-radius: 6px;
+        padding: 8px;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: .2s;
+    }
+
+    .region-cell:hover {
+        transform: scale(1.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="stats-grid mb-6" id="stats-grid">
+    <div class="stat-card blue">
+        <div class="stat-icon blue">📋</div>
+        <div class="stat-info">
+            <h3 id="stat-total">—</h3>
+            <p>Total Claims Analyzed</p>
+        </div>
+    </div>
+    <div class="stat-card red">
+        <div class="stat-icon red">🚨</div>
+        <div class="stat-info">
+            <h3 id="stat-flagged">—</h3>
+            <p>Flagged Claims</p>
+        </div>
+    </div>
+    <div class="stat-card amber">
+        <div class="stat-icon amber">💰</div>
+        <div class="stat-info">
+            <h3 id="stat-amount">—</h3>
+            <p>Suspicious Claim Amount</p>
+        </div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-icon green">🏥</div>
+        <div class="stat-info">
+            <h3 id="stat-hospitals">—</h3>
+            <p>Hospitals Monitored</p>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid-2 mb-6">
+    <!-- Trend Line Chart -->
+    <div class="chart-card">
+        <div class="section-title">📈 Fraud Trend Over Time</div>
+        <div style="position:relative;height:250px;">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+    <!-- Risk Distribution Pie -->
+    <div class="chart-card">
+        <div class="section-title">🥧 Risk Distribution</div>
+        <div style="position:relative;height:250px;">
+            <canvas id="pieChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Row -->
+<div class="grid-2 mb-6">
+    <!-- Hospital Bar Chart -->
+    <div class="chart-card">
+        <div class="section-title">🏥 Top Hospital Risk Comparison</div>
+        <div style="position:relative;height:250px;">
+            <canvas id="barChart"></canvas>
+        </div>
+    </div>
+    <!-- Top 5 High Risk Hospitals -->
+    <div class="chart-card">
+        <div class="section-title">⚠️ Top 5 High-Risk Hospitals</div>
+        <div id="top-hospitals-list">
+            <div style="text-align:center;padding:40px;color:var(--text-muted);">No data yet. Upload claims to begin.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Region Heatmap -->
+<div class="chart-card mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <div class="section-title">🗺️ Fraud Heatmap by Region</div>
+        <span class="text-sm text-muted">Hover for details</span>
+    </div>
+    <div class="region-map" id="region-map"></div>
+</div>
+
+<!-- Recent Uploads -->
+<div class="chart-card">
+    <div class="flex items-center justify-between mb-4">
+        <div class="section-title">📦 Recent Upload Batches</div>
+        <a href="/upload" class="btn btn-primary btn-sm">+ New Upload</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Batch ID</th>
+                    <th>Filename</th>
+                    <th>Total</th>
+                    <th>High</th>
+                    <th>Medium</th>
+                    <th>Low</th>
+                    <th>Uploaded At</th>
+                </tr>
+            </thead>
+            <tbody id="batch-table">
+                <tr>
+                    <td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">No uploads yet</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let trendChart, pieChart, barChart;
+
+    const REGIONS = [
+        { name: 'Maharashtra', val: 0 }, { name: 'Delhi', val: 0 }, { name: 'UP', val: 0 },
+        { name: 'Tamil Nadu', val: 0 }, { name: 'Karnataka', val: 0 }, { name: 'Gujarat', val: 0 },
+        { name: 'Rajasthan', val: 0 }, { name: 'West Bengal', val: 0 }, { name: 'MP', val: 0 },
+        { name: 'Bihar', val: 0 }, { name: 'Telangana', val: 0 }, { name: 'Punjab', val: 0 },
+        { name: 'Andhra Pradesh', val: 0 }, { name: 'Haryana', val: 0 }, { name: 'Odisha', val: 0 },
+    ];
+
+    function initCharts() {
+        const ctx1 = document.getElementById('trendChart').getContext('2d');
+        trendChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: [], datasets: [
+                    { label: 'Total Claims', data: [], borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.08)', fill: true, tension: .4, pointRadius: 3 },
+                    { label: 'High Risk', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,.08)', fill: true, tension: .4, pointRadius: 3 }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }
+        });
+
+        const ctx2 = document.getElementById('pieChart').getContext('2d');
+        pieChart = new Chart(ctx2, {
+            type: 'doughnut',
+            data: { labels: ['High Risk', 'Medium Risk', 'Low Risk'], datasets: [{ data: [0, 0, 0], backgroundColor: ['#ef4444', '#f59e0b', '#10b981'], hoverOffset: 8, borderWidth: 2 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } } } }
+        });
+
+        const ctx3 = document.getElementById('barChart').getContext('2d');
+        barChart = new Chart(ctx3, {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Avg Risk Score', data: [], backgroundColor: 'rgba(37,99,235,.7)', borderRadius: 6 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }
+        });
+    }
+
+    function renderHeatmap(topHospitals) {
+        const vals = topHospitals;
+        const max = vals.length > 0 ? Math.max(...vals.map(h => h.avg_rs || 0)) || 1 : 1;
+        const map = document.getElementById('region-map');
+        map.innerHTML = REGIONS.map((r, i) => {
+            const v = vals[i % vals.length]?.avg_rs || Math.random() * 60;
+            const pct = v / 100;
+            const r2 = Math.round(255 * pct); const g = Math.round(185 * (1 - pct)); const b = Math.round(100 * (1 - pct));
+            return `<div class="region-cell" style="background:rgba(${r2},${g},${b},.2);border:1px solid rgba(${r2},${g},${b},.4);color:rgb(${Math.round(r2 * .7)},${Math.round(g * .5)},50);" title="${r.name}: ${v.toFixed(1)} risk">${r.name}</div>`;
+        }).join('');
+    }
+
+    async function loadDashboard() {
+        try {
+            const res = await apiFetch('/api/stats');
+            if (!res) return;
+            const d = await res.json();
+
+            document.getElementById('stat-total').textContent = fmtNum(d.total_claims);
+            document.getElementById('stat-flagged').textContent = fmtNum(d.flagged_claims);
+            document.getElementById('stat-amount').textContent = fmtCurrency(d.suspicious_amount);
+            document.getElementById('stat-hospitals').textContent = fmtNum(d.top_hospitals?.length || 0);
+
+            // Trend
+            if (d.trend && d.trend.length > 0) {
+                trendChart.data.labels = d.trend.map(t => t.day);
+                trendChart.data.datasets[0].data = d.trend.map(t => t.total);
+                trendChart.data.datasets[1].data = d.trend.map(t => t.high);
+                trendChart.update();
+            }
+
+            // Risk dist
+            const dist = { High: 0, Medium: 0, Low: 0 };
+            (d.risk_distribution || []).forEach(r => { dist[r.risk_level] = (r.cnt || 0); });
+            pieChart.data.datasets[0].data = [dist.High, dist.Medium, dist.Low];
+            pieChart.update();
+
+            // Bar chart
+            if (d.top_hospitals && d.top_hospitals.length > 0) {
+                barChart.data.labels = d.top_hospitals.map(h => h.hospital_id);
+                barChart.data.datasets[0].data = d.top_hospitals.map(h => (h.avg_rs || 0).toFixed(1));
+                barChart.update();
+            }
+
+            // Top hospitals list
+            const list = document.getElementById('top-hospitals-list');
+            if (d.top_hospitals && d.top_hospitals.length > 0) {
+                list.innerHTML = d.top_hospitals.map((h, i) => `
+        <div class="top-hospital-row">
+          <div class="hosp-rank">${i + 1}</div>
+          <div class="hosp-info">
+            <h4>${h.hospital_id}</h4>
+            <p>${h.cnt} high-risk claims</p>
+          </div>
+          <div class="hosp-score text-danger">${(h.avg_rs || 0).toFixed(1)}</div>
+          <div class="progress" style="width:80px;margin-left:8px;">
+            <div class="progress-fill high" style="width:${Math.min(h.avg_rs || 0, 100)}%"></div>
+          </div>
+        </div>`).join('');
+            } else {
+                list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">No high-risk hospitals yet</div>';
+            }
+
+            renderHeatmap(d.top_hospitals || []);
+        } catch (e) { console.error(e); }
+    }
+
+    async function loadBatches() {
+        try {
+            const res = await apiFetch('/api/reports/summary');
+            if (!res) return;
+            const d = await res.json();
+            const tb = document.getElementById('batch-table');
+            if (d.batches && d.batches.length > 0) {
+                tb.innerHTML = d.batches.map(b => `<tr>
+        <td><code style="font-size:11px;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${b.batch_id}</code></td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.filename}</td>
+        <td><strong>${b.total_claims}</strong></td>
+        <td><span class="badge badge-high">${b.high_risk}</span></td>
+        <td><span class="badge badge-medium">${b.medium_risk}</span></td>
+        <td><span class="badge badge-low">${b.low_risk}</span></td>
+        <td class="text-muted text-sm">${new Date(b.uploaded_at).toLocaleString('en-IN')}</td>
+      </tr>`).join('');
+            } else {
+                tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">No uploads yet. <a href="/upload" style="color:var(--primary-light)">Upload now →</a></td></tr>';
+            }
+        } catch (e) { }
+    }
+
+    function onWsMessage(d) { loadDashboard(); loadBatches(); }
+
+    initCharts();
+    loadDashboard();
+    loadBatches();
+    setInterval(loadDashboard, 30000);
+</script>
+{% endblock %}

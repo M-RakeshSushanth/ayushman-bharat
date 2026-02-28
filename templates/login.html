@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Ayushman Bharat Fraud Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f2347 0%, #1a3a6b 50%, #0f4c81 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 48px 44px;
+            width: 440px;
+            box-shadow: 0 32px 80px rgba(0, 0, 0, .3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .govt-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .govt-emblem {
+            font-size: 56px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .govt-header h1 {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0f2347;
+            line-height: 1.2;
+        }
+
+        .govt-header p {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid #e2e8f0;
+            margin: 20px 0;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 7px;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-wrap .icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 14px 12px 40px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: .2s;
+            color: #1e293b;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+        }
+
+        .role-select {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .role-opt {
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: .2s;
+        }
+
+        .role-opt:hover {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .role-opt.selected {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .role-opt .r-icon {
+            font-size: 22px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .role-opt .r-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #1a3a6b, #2563eb);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: .2s;
+            letter-spacing: .02em;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(37, 99, 235, .4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .error-msg {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .demo-credentials {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 10px;
+            padding: 14px;
+            margin-top: 16px;
+            font-size: 12px;
+        }
+
+        .demo-credentials h4 {
+            font-size: 12px;
+            font-weight: 700;
+            color: #0369a1;
+            margin-bottom: 8px;
+        }
+
+        .demo-credentials .cred-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            color: #0c4a6e;
+        }
+
+        .demo-credentials .cred-row span {
+            font-weight: 600;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e2e8f0;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin .6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 11.5px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="govt-header">
+            <span class="govt-emblem">🏛️</span>
+            <h1>Ayushman Bharat<br>Fraud Detection Agent</h1>
+            <p>Ministry of Health & Family Welfare · Government of India</p>
+        </div>
+        <hr class="divider">
+        <div id="error-msg" class="error-msg"></div>
+        <form id="login-form" onsubmit="doLogin(event)">
+            <div class="form-group">
+                <label>Username</label>
+                <div class="input-wrap">
+                    <span class="icon">👤</span>
+                    <input type="text" id="username" class="form-control" placeholder="Enter username" value="admin"
+                        required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <div class="input-wrap">
+                    <span class="icon">🔒</span>
+                    <input type="password" id="password" class="form-control" placeholder="Enter password"
+                        value="admin123" required>
+                </div>
+            </div>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+            </div>
+            <button type="submit" class="btn-login">🔐 &nbsp;Secure Login</button>
+        </form>
+        <div class="demo-credentials">
+            <h4>🧪 Demo Credentials</h4>
+            <div class="cred-row"><span>Admin:</span><span>admin / admin123</span></div>
+            <div class="cred-row"><span>Analyst:</span><span>analyst / analyst123</span></div>
+        </div>
+        <p class="footer-note">🔒 Secured under NIC Digital Infrastructure · AB-PMJAY</p>
+    </div>
+
+    <script>
+        if (localStorage.getItem('token')) { window.location.href = '/dashboard'; }
+
+        async function doLogin(e) {
+            e.preventDefault();
+            const un = document.getElementById('username').value.trim();
+            const pw = document.getElementById('password').value;
+            const err = document.getElementById('error-msg');
+            const loading = document.getElementById('loading');
+            err.style.display = 'none'; loading.style.display = 'block';
+            try {
+                const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: un, password: pw }) });
+                const data = await res.json();
+                if (!res.ok) { throw new Error(data.detail || 'Login failed'); }
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('role', data.role);
+                window.location.href = '/dashboard';
+            } catch (ex) {
+                err.textContent = '❌ ' + ex.message; err.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% set active = "settings" %}
+
+{% block title %}Settings — Ayushman Bharat Fraud Detection{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block page_sub %}Adjust fraud detection thresholds and system configuration{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+    <!-- Fraud Threshold -->
+    <div class="card">
+        <div class="section-title">⚙️ Fraud Detection Threshold</div>
+        <p class="text-muted text-sm mb-4">Adjust the minimum risk score to classify a claim as high-risk.</p>
+        <div class="form-group">
+            <label>High Risk Threshold: <strong id="threshold-display" style="color:var(--accent);">70</strong></label>
+            <input type="range" id="threshold-slider" min="0" max="100" value="70"
+                style="width:100%;accent-color:var(--primary-light);margin-top:8px;cursor:pointer;"
+                oninput="document.getElementById('threshold-display').textContent=this.value">
+            <div
+                style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:4px;">
+                <span>0 (All Flagged)</span><span>50 (Balanced)</span><span>100 (None Flagged)</span>
+            </div>
+        </div>
+        <div
+            style="display:flex;gap:8px;align-items:center;margin-top:8px;background:#f8fafc;border-radius:8px;padding:12px;">
+            <span style="font-size:22px;">📊</span>
+            <div>
+                <div style="font-size:12px;font-weight:600;">Classification Rules</div>
+                <div style="font-size:11px;color:var(--text-muted);">Low: 0–39 · Medium: 40–69 · High: 70–100</div>
+            </div>
+        </div>
+        <button class="btn btn-primary mt-4" onclick="saveThreshold()">💾 Save Threshold</button>
+    </div>
+
+    <!-- System Info -->
+    <div class="card">
+        <div class="section-title">ℹ️ System Information</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div
+                style="background:#f8fafc;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;font-weight:500;">ML Model</span>
+                <span class="badge badge-low">Isolation Forest v1</span>
+            </div>
+            <div
+                style="background:#f8fafc;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;font-weight:500;">Database</span>
+                <span class="badge badge-low">SQLite (Active)</span>
+            </div>
+            <div
+                style="background:#f8fafc;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;font-weight:500;">Backend</span>
+                <span class="badge badge-low">FastAPI + Python</span>
+            </div>
+            <div
+                style="background:#f8fafc;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;font-weight:500;">Real-time Updates</span>
+                <span class="badge badge-low" id="ws-status">WebSocket Connected</span>
+            </div>
+            <div
+                style="background:#f8fafc;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;font-weight:500;">Version</span>
+                <span class="badge badge-pending">v2.0.0-prod</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Management -->
+<div class="card mt-4">
+    <div class="section-title">👥 User Accounts</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>admin</strong></td>
+                    <td><span class="badge role-badge role-admin">Admin</span></td>
+                    <td class="text-muted text-sm">System default</td>
+                </tr>
+                <tr>
+                    <td><strong>analyst</strong></td>
+                    <td><span class="badge role-badge role-analyst">Analyst</span></td>
+                    <td class="text-muted text-sm">System default</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Danger Zone -->
+<div class="card mt-4" style="border:1.5px solid #fecaca;">
+    <div class="section-title" style="color:#dc2626;">⚠️ Danger Zone</div>
+    <p class="text-muted text-sm mb-4">These actions are irreversible. Proceed with extreme caution.</p>
+    <div class="flex gap-3" style="align-items:center;">
+        <button class="btn btn-danger btn-sm" id="clear-btn" onclick="confirmClear()">🗑️ Clear All Claims</button>
+        <button class="btn btn-outline btn-sm" onclick="logout()">🚪 Logout</button>
+        <span id="clear-status" style="font-size:12px;color:var(--text-muted);display:none;">⏳ Deleting...</span>
+    </div>
+    <div id="clear-result" style="margin-top:12px;display:none;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadThreshold() {
+        try {
+            const res = await apiFetch('/api/settings/threshold');
+            if (!res) return;
+            const d = await res.json();
+            const v = d.value || 70;
+            document.getElementById('threshold-slider').value = v;
+            document.getElementById('threshold-display').textContent = v;
+        } catch (e) { }
+    }
+
+    async function saveThreshold() {
+        const v = document.getElementById('threshold-slider').value;
+        const res = await apiFetch('/api/settings/threshold', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threshold: Number(v) }) });
+        if (res && res.ok) showToast('✅ Threshold saved: ' + v);
+        else showToast('❌ Failed to save threshold');
+    }
+
+    function confirmClear() {
+        const confirmed = confirm(
+            '⚠️ WARNING: This will permanently delete ALL claims, hospital data, alerts, and upload batches from the database.\n\nThis action cannot be undone.\n\nType YES in the next prompt to confirm.'
+        );
+        if (!confirmed) return;
+        const typed = prompt('Type YES to confirm deletion of all data:');
+        if (typed && typed.trim().toUpperCase() === 'YES') {
+            clearData();
+        } else {
+            showToast('❌ Cancelled — you must type YES to confirm');
+        }
+    }
+
+    async function clearData() {
+        const btn = document.getElementById('clear-btn');
+        const status = document.getElementById('clear-status');
+        const result = document.getElementById('clear-result');
+        btn.disabled = true;
+        btn.textContent = '⏳ Clearing...';
+        status.style.display = 'inline';
+        result.style.display = 'none';
+        try {
+            // Use raw fetch so that a 401 doesn't silently call logout()
+            const token = localStorage.getItem('token') || '';
+            const res = await fetch('/api/settings/clear-data', {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const d = await res.json();
+            if (res.ok) {
+                result.style.display = 'block';
+                result.innerHTML = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;font-size:13px;color:#059669;">✅ ${d.message}</div>`;
+                showToast('✅ All data cleared successfully');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                throw new Error(d.detail || 'Server returned ' + res.status);
+            }
+        } catch (e) {
+            result.style.display = 'block';
+            result.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;font-size:13px;color:#dc2626;">❌ Error: ${e.message}</div>`;
+            showToast('❌ ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🗑️ Clear All Claims';
+            status.style.display = 'none';
+        }
+    }
+
+    // WebSocket status
+    function onWsMessage(d) {
+        const ws = document.getElementById('ws-status');
+        if (ws) ws.textContent = 'WebSocket Connected';
+    }
+
+    loadThreshold();
+</script>
+{% endblock %}

@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% set active = "reports" %}
+
+{% block title %}Reports — Ayushman Bharat Fraud Detection{% endblock %}
+{% block page_title %}Report Generator{% endblock %}
+{% block page_sub %}Generate and download fraud analysis reports{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .report-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        margin-bottom: 20px;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .sum-box {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 16px;
+        text-align: center;
+    }
+
+    .sum-box h3 {
+        font-size: 24px;
+        font-weight: 800;
+        margin-bottom: 4px;
+    }
+
+    .sum-box p {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .print-frame {
+        display: none;
+    }
+
+    @media print {
+
+        .sidebar,
+        .topbar,
+        .no-print {
+            display: none !important;
+        }
+
+        .main {
+            margin-left: 0 !important;
+        }
+
+        .content {
+            padding: 0 !important;
+        }
+    }
+
+    .batch-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        margin-bottom: 8px;
+    }
+
+    .batch-row:hover {
+        background: #f8fafc;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Summary Stats -->
+<div class="report-card">
+    <div class="flex items-center justify-between mb-4">
+        <div class="section-title">📊 Executive Summary</div>
+        <div class="flex gap-2 no-print">
+            <button class="btn btn-primary" onclick="generatePDF()">📄 Download PDF</button>
+            <a href="/api/reports/csv" class="btn btn-outline" download="fraud_report_all.csv">⬇️ Export CSV</a>
+            <a href="/api/reports/csv?risk_level=High" class="btn btn-danger" download="high_risk_claims.csv">🔴 High
+                Risk CSV</a>
+        </div>
+    </div>
+    <div class="summary-grid">
+        <div class="sum-box">
+            <h3 id="r-total" style="color:#2563eb;">—</h3>
+            <p>Total Claims</p>
+        </div>
+        <div class="sum-box">
+            <h3 id="r-high" style="color:#ef4444;">—</h3>
+            <p>High Risk</p>
+        </div>
+        <div class="sum-box">
+            <h3 id="r-medium" style="color:#d97706;">—</h3>
+            <p>Medium Risk</p>
+        </div>
+        <div class="sum-box">
+            <h3 id="r-low" style="color:#059669;">—</h3>
+            <p>Low Risk</p>
+        </div>
+        <div class="sum-box">
+            <h3 id="r-amount" style="color:#7c3aed;font-size:16px;">—</h3>
+            <p>Suspicious Amount</p>
+        </div>
+    </div>
+</div>
+
+<!-- Charts for report -->
+<div class="grid-2 mb-4">
+    <div class="report-card">
+        <div class="section-title">🥧 Risk Distribution</div>
+        <div style="height:220px;"><canvas id="rep-pie"></canvas></div>
+    </div>
+    <div class="report-card">
+        <div class="section-title">🏥 Top High-Risk Hospitals</div>
+        <div id="rep-hospitals"></div>
+    </div>
+</div>
+
+<!-- Upload Batches -->
+<div class="report-card mb-4">
+    <div class="section-title">📦 Upload History</div>
+    <div id="batch-list">
+        <div class="spinner"></div>
+    </div>
+</div>
+
+<!-- High Risk Claims -->
+<div class="report-card">
+    <div class="section-title">🔴 High-Risk Claims List</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Claim ID</th>
+                    <th>Hospital</th>
+                    <th>Patient</th>
+                    <th>Amount</th>
+                    <th>Risk Score</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="hr-claims"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let repPieChart;
+
+    function initPie() {
+        const ctx = document.getElementById('rep-pie').getContext('2d');
+        repPieChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: ['High Risk', 'Medium Risk', 'Low Risk'], datasets: [{ data: [0, 0, 0], backgroundColor: ['#ef4444', '#f59e0b', '#10b981'], borderWidth: 2, hoverOffset: 8 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    async function loadSummary() {
+        const res = await apiFetch('/api/reports/summary');
+        if (!res) return;
+        const d = await res.json();
+        document.getElementById('r-total').textContent = fmtNum(d.total);
+        document.getElementById('r-high').textContent = fmtNum(d.high);
+        document.getElementById('r-medium').textContent = fmtNum(d.medium);
+        document.getElementById('r-low').textContent = fmtNum(d.low);
+        document.getElementById('r-amount').textContent = fmtCurrency(d.suspicious_amount);
+
+        repPieChart.data.datasets[0].data = [d.high, d.medium, d.low];
+        repPieChart.update();
+
+        const hList = document.getElementById('rep-hospitals');
+        if (d.top_hospitals && d.top_hospitals.length) {
+            hList.innerHTML = d.top_hospitals.map((h, i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--primary-light);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">${i + 1}</div>
+        <div style="flex:1;"><strong>${h.hospital_id}</strong><div style="font-size:11px;color:var(--text-muted);">${h.cnt} high-risk claims</div></div>
+        <strong style="color:#ef4444;">${(h.avg_rs || 0).toFixed(1)}</strong>
+      </div>`).join('');
+        } else {
+            hList.innerHTML = '<p class="text-muted text-sm" style="padding:16px;">No data available</p>';
+        }
+
+        const bl = document.getElementById('batch-list');
+        if (d.batches && d.batches.length) {
+            bl.innerHTML = d.batches.map(b => `
+      <div class="batch-row">
+        <code style="font-size:11px;background:#f1f5f9;padding:3px 8px;border-radius:4px;">${b.batch_id}</code>
+        <div style="flex:1;"><strong style="font-size:13px;">${b.filename}</strong></div>
+        <span class="badge badge-pending">${b.total_claims} total</span>
+        <span class="badge badge-high">${b.high_risk} high</span>
+        <span class="badge badge-medium">${b.medium_risk} medium</span>
+        <span class="badge badge-low">${b.low_risk} low</span>
+        <span class="text-muted text-sm">${new Date(b.uploaded_at).toLocaleDateString('en-IN')}</span>
+      </div>`).join('');
+        } else {
+            bl.innerHTML = '<p class="text-muted text-sm">No uploads yet</p>';
+        }
+    }
+
+    async function loadHighRisk() {
+        const res = await apiFetch('/api/claims?per_page=50&risk_min=70');
+        if (!res) return;
+        const d = await res.json();
+        const tb = document.getElementById('hr-claims');
+        if (d.claims && d.claims.length) {
+            tb.innerHTML = d.claims.map(c => `<tr style="background:#fff8f8;">
+      <td><code style="font-size:11px;background:#fef2f2;padding:2px 5px;border-radius:4px;">${c.claim_id}</code></td>
+      <td>${c.hospital_id}</td>
+      <td>${c.patient_id}</td>
+      <td><strong>${fmtCurrency(c.claim_amount)}</strong></td>
+      <td><strong style="color:#ef4444;">${(c.risk_score || 0).toFixed(1)}</strong></td>
+      <td>${statusBadge(c.status)}</td>
+    </tr>`).join('');
+        } else {
+            tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">No high-risk claims found</td></tr>';
+        }
+    }
+
+    function generatePDF() {
+        window.print();
+    }
+
+    initPie();
+    loadSummary();
+    loadHighRisk();
+</script>
+{% endblock %}

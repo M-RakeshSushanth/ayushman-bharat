@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+{% set active = "investigate" %}
+
+{% block title %}Investigate — Ayushman Bharat Fraud Detection{% endblock %}
+{% block page_title %}Claim Investigation Panel{% endblock %}
+{% block page_sub %}Filter, explore, and investigate individual fraud claims{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .filter-bar {
+        background: #fff;
+        border-radius: 12px;
+        padding: 18px 22px;
+        box-shadow: var(--shadow);
+        margin-bottom: 20px;
+    }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto auto;
+        gap: 12px;
+        align-items: end;
+    }
+
+    .risk-meter {
+        width: 80px;
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        display: inline-block;
+        vertical-align: middle;
+        overflow: hidden;
+    }
+
+    .risk-fill {
+        height: 100%;
+        border-radius: 4px;
+    }
+
+    .risk-fill-high {
+        background: #ef4444;
+    }
+
+    .risk-fill-medium {
+        background: #f59e0b;
+    }
+
+    .risk-fill-low {
+        background: #10b981;
+    }
+
+    .explain-box {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 16px;
+        border-left: 4px solid var(--primary-light);
+        margin-top: 12px;
+    }
+
+    .explain-reason {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .explain-reason:last-child {
+        margin-bottom: 0;
+    }
+
+    .explain-icon {
+        font-size: 16px;
+        margin-top: 2px;
+    }
+
+    .explain-reason p {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .pagination {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        justify-content: flex-end;
+    }
+
+    .page-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1.5px solid var(--border);
+        background: #fff;
+        cursor: pointer;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: .2s;
+    }
+
+    .page-btn:hover {
+        background: #f8fafc;
+    }
+
+    .page-btn.active {
+        background: var(--primary-light);
+        color: #fff;
+        border-color: var(--primary-light);
+    }
+
+    .row-high {
+        background: #fff8f8;
+    }
+
+    .row-high:hover {
+        background: #fef2f2 !important;
+    }
+
+    .claim-detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .detail-row {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .detail-row label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: var(--text-muted);
+    }
+
+    .detail-row span {
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .risk-score-big {
+        font-size: 48px;
+        font-weight: 800;
+        text-align: center;
+        padding: 16px;
+    }
+
+    .score-high {
+        color: #ef4444;
+    }
+
+    .score-medium {
+        color: #d97706;
+    }
+
+    .score-low {
+        color: #059669;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="filter-bar">
+    <div class="section-title mb-4">🔍 Filters</div>
+    <div class="filter-row">
+        <div class="form-group" style="margin:0;">
+            <label>From Date</label>
+            <input type="date" class="form-control" id="f-from">
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label>To Date</label>
+            <input type="date" class="form-control" id="f-to">
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label>Hospital ID</label>
+            <input type="text" class="form-control" id="f-hospital" placeholder="e.g. H001">
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label>Min Risk %</label>
+            <input type="number" class="form-control" id="f-risk" placeholder="0" min="0" max="100" style="width:90px;">
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+            <button class="btn btn-primary" onclick="loadClaims(1)">🔍 Filter</button>
+            <button class="btn btn-outline" onclick="clearFilters()">✕</button>
+        </div>
+    </div>
+</div>
+
+<!-- Claims Table -->
+<div class="card">
+    <div class="flex items-center justify-between mb-4">
+        <div class="section-title">📋 Claims (<span id="claims-count">—</span>)</div>
+        <div class="flex gap-2">
+            <a href="/api/reports/csv?risk_level=High" class="btn btn-sm btn-outline" download>⬇️ Export High Risk</a>
+            <a href="/api/reports/csv" class="btn btn-sm btn-outline" download>⬇️ Export All</a>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Claim ID</th>
+                    <th>ABHA ID</th>
+                    <th>Patient ID</th>
+                    <th>Hospital</th>
+                    <th>Doctor</th>
+                    <th>Admitted</th>
+                    <th>Amount</th>
+                    <th>Risk Score</th>
+                    <th>Risk Level</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="claims-tbody">
+                <tr>
+                    <td colspan="10" style="text-align:center;padding:40px;color:var(--text-muted);">Loading claims...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+</div>
+{% endblock %}
+
+{% block modal %}
+<!-- Claim Detail Modal -->
+<div class="modal-overlay" id="claim-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>🔍 Claim Investigation Report</h3>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body" id="modal-body">Loading...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    const perPage = 25;
+
+    function clearFilters() {
+        document.getElementById('f-from').value = '';
+        document.getElementById('f-to').value = '';
+        document.getElementById('f-hospital').value = '';
+        document.getElementById('f-risk').value = '';
+        loadClaims(1);
+    }
+
+    async function loadClaims(page = 1) {
+        currentPage = page;
+        const from = document.getElementById('f-from').value;
+        const to = document.getElementById('f-to').value;
+        const hosp = document.getElementById('f-hospital').value;
+        const risk = document.getElementById('f-risk').value;
+        const params = new URLSearchParams({ page, per_page: perPage });
+        if (from) params.append('date_from', from);
+        if (to) params.append('date_to', to);
+        if (hosp) params.append('hospital_id', hosp);
+        if (risk) params.append('risk_min', risk);
+
+        const res = await apiFetch('/api/claims?' + params.toString());
+        if (!res) return;
+        const d = await res.json();
+        document.getElementById('claims-count').textContent = fmtNum(d.total);
+        renderTable(d.claims);
+        renderPagination(d.total, page);
+    }
+
+    function renderTable(claims) {
+        const tb = document.getElementById('claims-tbody');
+        if (!claims || claims.length === 0) {
+            tb.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">No claims found. <a href="/upload" style="color:var(--primary-light)">Upload data first →</a></td></tr>';
+            return;
+        }
+        tb.innerHTML = claims.map(c => {
+            const isHigh = c.risk_level === 'High';
+            const rowCls = isHigh ? 'row-high' : '';
+            const score = Number(c.risk_score || 0).toFixed(1);
+            const pct = Math.min(score, 100);
+            const fillCls = isHigh ? 'risk-fill-high' : (c.risk_level === 'Medium' ? 'risk-fill-medium' : 'risk-fill-low');
+            return `<tr class="${rowCls}" id="claim-row-${c.id}">
+      <td><code style="font-size:11px;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${c.claim_id || '—'}</code>${isHigh ? '🔴' : ''}</td>
+      <td><code style="font-size:11px;background:#eef6ff;padding:2px 6px;border-radius:4px;color:#2563eb;">${c.abha_id || '—'}</code></td>
+      <td>${c.patient_id || '—'}</td>
+      <td>${c.hospital_id || '—'}</td>
+      <td>${c.doctor_id || '—'}</td>
+      <td>${c.admission_date || '—'}</td>
+      <td><strong>${fmtCurrency(c.claim_amount)}</strong></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-weight:700;font-size:13px;">${score}</span>
+          <div class="risk-meter"><div class="risk-fill ${fillCls}" style="width:${pct}%"></div></div>
+        </div>
+      </td>
+      <td>${riskBadge(c.risk_level || 'Low')}</td>
+      <td>${statusBadge(c.status || 'Pending')}</td>
+      <td>
+        <button class="btn btn-sm btn-primary" onclick="openModal(${c.id})">🔎 Explore</button>
+      </td>
+    </tr>`;
+        }).join('');
+    }
+
+    function renderPagination(total, current) {
+        const pages = Math.ceil(total / perPage);
+        const pg = document.getElementById('pagination');
+        if (pages <= 1) { pg.innerHTML = ''; return; }
+        let html = '';
+        const from = Math.max(1, current - 2); const to = Math.min(pages, current + 2);
+        if (current > 1) html += `<button class="page-btn" onclick="loadClaims(${current - 1})">‹</button>`;
+        for (let i = from; i <= to; i++) html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="loadClaims(${i})">${i}</button>`;
+        if (current < pages) html += `<button class="page-btn" onclick="loadClaims(${current + 1})">›</button>`;
+        pg.innerHTML = html;
+    }
+
+    async function openModal(id) {
+        document.getElementById('claim-modal').classList.add('show');
+        document.getElementById('modal-body').innerHTML = '<div style="text-align:center;padding:40px;"><div class="spinner"></div></div>';
+        const res = await apiFetch(`/api/claims/${id}/explain`);
+        if (!res) { return; }
+        const d = await res.json();
+        const c = d.claim;
+        const score = Number(d.risk_score || 0).toFixed(1);
+        const lvl = d.risk_level || 'Low';
+        const scoreClass = lvl === 'High' ? 'score-high' : (lvl === 'Medium' ? 'score-medium' : 'score-low');
+        const reasons = (d.explanation || '').split(';').filter(r => r.trim());
+
+        document.getElementById('modal-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;margin-bottom:20px;">
+      <div>
+        <h4 style="font-size:16px;font-weight:700;color:var(--primary-dark);margin-bottom:8px;">Claim ${c.claim_id}</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${riskBadge(lvl)}
+          ${statusBadge(c.status)}
+          <span class="badge badge-pending">Batch ${c.upload_batch}</span>
+        </div>
+      </div>
+      <div style="text-align:center;">
+        <div class="risk-score-big ${scoreClass}">${score}</div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;">RISK SCORE</div>
+        <div class="progress" style="margin-top:8px;">
+          <div class="progress-fill ${lvl.toLowerCase()}" style="width:${Math.min(score, 100)}%"></div>
+        </div>
+      </div>
+    </div>
+    <div class="claim-detail-grid mb-4">
+      <div class="detail-row"><label>ABHA ID</label><span style="color:#2563eb;font-weight:600;">${c.abha_id || '—'}</span></div>
+      <div class="detail-row"><label>Patient ID</label><span>${c.patient_id || '—'}</span></div>
+      <div class="detail-row"><label>Hospital ID</label><span>${c.hospital_id || '—'}</span></div>
+      <div class="detail-row"><label>Doctor ID</label><span>${c.doctor_id || '—'}</span></div>
+      <div class="detail-row"><label>Location</label><span>${c.location || '—'}</span></div>
+      <div class="detail-row"><label>Diagnosis Code</label><span>${c.diagnosis_code || '—'}</span></div>
+      <div class="detail-row"><label>Treatment Code</label><span>${c.treatment_code || '—'}</span></div>
+      <div class="detail-row"><label>Admission Date</label><span>${c.admission_date || '—'}</span></div>
+      <div class="detail-row"><label>Discharge Date</label><span>${c.discharge_date || '—'}</span></div>
+      <div class="detail-row"><label>Claim Amount</label><span style="font-weight:700;">${fmtCurrency(c.claim_amount)}</span></div>
+      <div class="detail-row"><label>Approved Amount</label><span>${fmtCurrency(c.approved_amount)}</span></div>
+    </div>
+    <div class="section-title" style="font-size:13px;margin-bottom:12px;">🤖 AI Fraud Explanation</div>
+    <div class="explain-box">
+      ${reasons.map(r => `<div class="explain-reason"><span class="explain-icon">⚠️</span><p>${r.trim()}</p></div>`).join('')}
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn btn-success btn-sm" onclick="updateStatus(${c.id},'Approved')">✅ Approve</button>
+      <button class="btn btn-danger btn-sm" onclick="updateStatus(${c.id},'Rejected')">❌ Reject</button>
+      <button class="btn btn-outline btn-sm" onclick="closeModal()">Close</button>
+    </div>`;
+    }
+
+    async function updateStatus(id, status) {
+        await apiFetch(`/api/claims/${id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+        showToast(`✅ Claim marked as ${status}`);
+        closeModal();
+        loadClaims(currentPage);
+    }
+
+    function closeModal() {
+        document.getElementById('claim-modal').classList.remove('show');
+    }
+    document.getElementById('claim-modal').addEventListener('click', e => {
+        if (e.target.id === 'claim-modal') closeModal();
+    });
+
+    loadClaims(1);
+</script>
+{% endblock %}

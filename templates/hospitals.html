@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% set active = "hospitals" %}
+
+{% block title %}Hospitals — Ayushman Bharat Fraud Detection{% endblock %}
+{% block page_title %}Hospital Risk Profiles{% endblock %}
+{% block page_sub %}Monitor risk levels and fraud patterns across healthcare providers{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .hosp-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+        border-top: 4px solid transparent;
+        cursor: pointer;
+        transition: .2s;
+    }
+
+    .hosp-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+    }
+
+    .hosp-card.risk-high {
+        border-top-color: #ef4444;
+    }
+
+    .hosp-card.risk-medium {
+        border-top-color: #f59e0b;
+    }
+
+    .hosp-card.risk-low {
+        border-top-color: #10b981;
+    }
+
+    .hosp-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+        margin-bottom: 24px;
+    }
+
+    .hosp-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        margin-bottom: 12px;
+    }
+
+    .hosp-avatar.high {
+        background: #fef2f2;
+    }
+
+    .hosp-avatar.medium {
+        background: #fffbeb;
+    }
+
+    .hosp-avatar.low {
+        background: #f0fdf4;
+    }
+
+    .stat-mini {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .stat-mini-item {
+        text-align: center;
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 8px 4px;
+    }
+
+    .stat-mini-item .val {
+        font-size: 16px;
+        font-weight: 700;
+    }
+
+    .stat-mini-item .lbl {
+        font-size: 10px;
+        color: var(--text-muted);
+    }
+
+    .detail-panel {
+        background: #fff;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        display: none;
+    }
+
+    .detail-panel.show {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hosp-cards-grid" id="hosp-grid">
+    <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);">
+        <div class="spinner"></div>
+        <p style="margin-top:12px;">Loading hospital profiles...</p>
+    </div>
+</div>
+
+<!-- Hospital Detail -->
+<div class="detail-panel" id="hosp-detail">
+    <div class="flex items-center justify-between mb-4">
+        <div class="section-title" id="detail-title">Hospital Detail</div>
+        <button class="btn btn-outline btn-sm" onclick="closeDetail()">✕ Close</button>
+    </div>
+    <div class="grid-2 mb-4">
+        <div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;" id="detail-stats">
+            </div>
+        </div>
+        <div>
+            <div class="section-title" style="font-size:13px;">📈 Fraud Trend</div>
+            <div style="position:relative;height:180px;"><canvas id="hosp-trend-chart"></canvas></div>
+        </div>
+    </div>
+    <div class="section-title" style="font-size:13px;">🔴 Top High-Risk Claims</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Claim ID</th>
+                    <th>Patient</th>
+                    <th>Amount</th>
+                    <th>Risk Score</th>
+                    <th>Risk Level</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody id="detail-claims"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let hospTrendChart = null;
+
+    async function loadHospitals() {
+        const res = await apiFetch('/api/hospitals');
+        if (!res) return;
+        const hospitals = await res.json();
+        const grid = document.getElementById('hosp-grid');
+        if (!hospitals.length) {
+            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);">No hospital data yet. <a href="/upload" style="color:var(--primary-light)">Upload claims →</a></div>';
+            return;
+        }
+        grid.innerHTML = hospitals.map(h => {
+            const lvlLow = h.risk_level.toLowerCase();
+            const col = h.risk_level === 'High' ? '#ef4444' : (h.risk_level === 'Medium' ? '#d97706' : '#059669');
+            return `<div class="hosp-card risk-${lvlLow}" onclick="openDetail('${h.hospital_id}')">
+      <div class="hosp-avatar ${lvlLow}">🏥</div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <div>
+          <h3 style="font-size:14px;font-weight:700;">${h.name || h.hospital_id}</h3>
+          <p style="font-size:12px;color:var(--text-muted);">${h.location || 'Unknown'}</p>
+        </div>
+        <span class="badge badge-${lvlLow}">${h.risk_level}</span>
+      </div>
+      <div class="stat-mini">
+        <div class="stat-mini-item">
+          <div class="val">${h.total_claims || 0}</div>
+          <div class="lbl">Claims</div>
+        </div>
+        <div class="stat-mini-item">
+          <div class="val" style="color:${col};">${(h.avg_risk_score || 0).toFixed(1)}</div>
+          <div class="lbl">Avg Risk</div>
+        </div>
+        <div class="stat-mini-item">
+          <div class="val">${h.flagged_claims || 0}</div>
+          <div class="lbl">Flagged</div>
+        </div>
+      </div>
+      <div class="progress" style="margin-top:12px;">
+        <div class="progress-fill ${lvlLow}" style="width:${Math.min(h.avg_risk_score || 0, 100)}%"></div>
+      </div>
+    </div>`;
+        }).join('');
+    }
+
+    async function openDetail(hospId) {
+        const detail = document.getElementById('hosp-detail');
+        detail.classList.add('show');
+        detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('detail-title').textContent = `🏥 ${hospId} — Full Profile`;
+        document.getElementById('detail-stats').innerHTML = '<div class="spinner" style="grid-column:1/-1"></div>';
+        document.getElementById('detail-claims').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">Loading...</td></tr>';
+
+        const res = await apiFetch(`/api/hospitals/${hospId}`);
+        if (!res) return;
+        const d = await res.json();
+        const h = d.hospital;
+
+        document.getElementById('detail-stats').innerHTML = `
+    <div class="card-sm"><p class="text-muted text-sm">Total Claims</p><h3>${h.total_claims}</h3></div>
+    <div class="card-sm"><p class="text-muted text-sm">Flagged</p><h3 class="text-danger">${h.flagged_claims}</h3></div>
+    <div class="card-sm"><p class="text-muted text-sm">Total Amount</p><h3>${fmtCurrency(h.total_amount)}</h3></div>
+    <div class="card-sm"><p class="text-muted text-sm">Suspicious Amt</p><h3 class="text-danger">${fmtCurrency(h.suspicious_amount)}</h3></div>`;
+
+        // Trend chart
+        if (hospTrendChart) hospTrendChart.destroy();
+        const ctx = document.getElementById('hosp-trend-chart').getContext('2d');
+        hospTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: (d.trend || []).map(t => t.day),
+                datasets: [{ label: 'Avg Risk', data: (d.trend || []).map(t => (t.avg_rs || 0).toFixed(1)), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,.08)', fill: true, tension: .4, pointRadius: 3 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 }, x: { grid: { display: false } } } }
+        });
+
+        const claims = d.top_claims || [];
+        const tb = document.getElementById('detail-claims');
+        if (claims.length) {
+            tb.innerHTML = claims.map(c => `<tr>
+      <td><code style="font-size:11px;background:#f1f5f9;padding:2px 5px;border-radius:4px;">${c.claim_id}</code></td>
+      <td>${c.patient_id}</td>
+      <td>${fmtCurrency(c.claim_amount)}</td>
+      <td><strong style="color:${c.risk_level === 'High' ? '#ef4444' : '#d97706'}">${(c.risk_score || 0).toFixed(1)}</strong></td>
+      <td>${riskBadge(c.risk_level)}</td>
+      <td class="text-muted text-sm">${c.admission_date || '—'}</td>
+    </tr>`).join('');
+        } else {
+            tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">No claims found</td></tr>';
+        }
+    }
+
+    function closeDetail() {
+        document.getElementById('hosp-detail').classList.remove('show');
+    }
+
+    loadHospitals();
+</script>
+{% endblock %}

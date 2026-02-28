@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Ayushman Bharat Fraud Detection{% endblock %}</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1a3a6b;
+      --primary-light: #2563eb;
+      --primary-dark: #0f2347;
+      --accent: #ef4444;
+      --accent-amber: #f59e0b;
+      --accent-green: #10b981;
+      --bg: #f0f4f8;
+      --card: #ffffff;
+      --sidebar: #0f2347;
+      --sidebar-text: #c8d8f0;
+      --sidebar-active: #2563eb;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 2px 12px rgba(15, 35, 71, .08);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      min-height: 100vh;
+      background: var(--sidebar);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      transition: .3s;
+    }
+
+    .sidebar-logo {
+      padding: 24px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .sidebar-logo .emblem {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sidebar-logo .emblem img {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #fff;
+      padding: 3px;
+    }
+
+    .sidebar-logo h1 {
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .sidebar-logo p {
+      color: var(--sidebar-text);
+      font-size: 10px;
+      opacity: .7;
+      margin-top: 2px;
+    }
+
+    .sidebar-user {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-user .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--sidebar-active);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .sidebar-user .info {
+      flex: 1;
+    }
+
+    .sidebar-user .info span {
+      display: block;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .sidebar-user .info small {
+      color: var(--sidebar-text);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .role-badge {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 20px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .role-admin {
+      background: rgba(239, 68, 68, .2);
+      color: #fca5a5;
+    }
+
+    .role-analyst {
+      background: rgba(37, 99, 235, .2);
+      color: #93c5fd;
+    }
+
+    nav {
+      flex: 1;
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+
+    nav a {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 20px;
+      color: var(--sidebar-text);
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 500;
+      transition: .2s;
+      border-left: 3px solid transparent;
+      margin: 2px 0;
+    }
+
+    nav a:hover {
+      background: rgba(255, 255, 255, .06);
+      color: #fff;
+    }
+
+    nav a.active {
+      background: rgba(37, 99, 235, .15);
+      color: #fff;
+      border-left-color: var(--sidebar-active);
+    }
+
+    nav a .icon {
+      width: 20px;
+      text-align: center;
+      font-size: 16px;
+    }
+
+    nav .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: rgba(200, 216, 240, .4);
+      padding: 12px 20px 6px;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .sidebar-footer a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--sidebar-text);
+      font-size: 13px;
+      text-decoration: none;
+      padding: 8px 0;
+    }
+
+    .sidebar-footer a:hover {
+      color: #fff;
+    }
+
+    /* Main Content */
+    .main {
+      margin-left: 260px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .04);
+    }
+
+    .topbar-left h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+
+    .topbar-left p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .alert-btn {
+      position: relative;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 6px;
+    }
+
+    .alert-badge {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--card);
+    }
+
+    .content {
+      padding: 28px;
+      flex: 1;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-sm {
+      background: var(--card);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    /* Stat Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-left: 4px solid transparent;
+      transition: .2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(15, 35, 71, .12);
+    }
+
+    .stat-card.blue {
+      border-left-color: var(--primary-light);
+    }
+
+    .stat-card.red {
+      border-left-color: var(--accent);
+    }
+
+    .stat-card.amber {
+      border-left-color: var(--accent-amber);
+    }
+
+    .stat-card.green {
+      border-left-color: var(--accent-green);
+    }
+
+    .stat-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .stat-icon.blue {
+      background: rgba(37, 99, 235, .1);
+    }
+
+    .stat-icon.red {
+      background: rgba(239, 68, 68, .1);
+    }
+
+    .stat-icon.amber {
+      background: rgba(245, 158, 11, .1);
+    }
+
+    .stat-icon.green {
+      background: rgba(16, 185, 129, .1);
+    }
+
+    .stat-info h3 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .stat-info p {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    /* Grid layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 280px;
+    }
+
+    /* Table */
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+
+    thead th {
+      background: #f8fafc;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #f1f5f9;
+      transition: .15s;
+    }
+
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    tbody td {
+      padding: 10px 14px;
+      color: var(--text);
+    }
+
+    /* Risk Badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-high {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .badge-medium {
+      background: #fffbeb;
+      color: #d97706;
+    }
+
+    .badge-low {
+      background: #f0fdf4;
+      color: #059669;
+    }
+
+    .badge-pending {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    .badge-approved {
+      background: #f0fdf4;
+      color: #059669;
+    }
+
+    .badge-rejected {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: .2s;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--primary-light);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary);
+    }
+
+    .btn-danger {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      background: #f8fafc;
+    }
+
+    .btn-sm {
+      padding: 5px 12px;
+      font-size: 12px;
+    }
+
+    .btn-success {
+      background: var(--accent-green);
+      color: #fff;
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: .2s;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+    }
+
+    select.form-control {
+      cursor: pointer;
+    }
+
+    /* Utils */
+    .flex {
+      display: flex;
+    }
+
+    .items-center {
+      align-items: center;
+    }
+
+    .justify-between {
+      justify-content: space-between;
+    }
+
+    .gap-2 {
+      gap: 8px;
+    }
+
+    .gap-3 {
+      gap: 12px;
+    }
+
+    .mb-2 {
+      margin-bottom: 8px;
+    }
+
+    .mb-3 {
+      margin-bottom: 12px;
+    }
+
+    .mb-4 {
+      margin-bottom: 16px;
+    }
+
+    .mb-6 {
+      margin-bottom: 24px;
+    }
+
+    .mt-4 {
+      margin-top: 16px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: var(--primary-light);
+      border-radius: 2px;
+    }
+
+    .text-muted {
+      color: var(--text-muted);
+    }
+
+    .text-danger {
+      color: var(--accent);
+    }
+
+    .text-sm {
+      font-size: 12px;
+    }
+
+    .fw-bold {
+      font-weight: 700;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #e2e8f0;
+      border-top-color: var(--primary-light);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    /* Alert panel */
+    .alert-panel {
+      position: fixed;
+      top: 64px;
+      right: 20px;
+      width: 320px;
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .15);
+      z-index: 200;
+      display: none;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .alert-panel.show {
+      display: block;
+    }
+
+    .alert-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .alert-item:last-child {
+      border-bottom: none;
+    }
+
+    .alert-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .alert-dot.read {
+      background: var(--text-muted);
+    }
+
+    .alert-item p {
+      font-size: 12.5px;
+      line-height: 1.4;
+    }
+
+    .alert-item small {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .alert-header {
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 9999;
+      display: none;
+      animation: fadeIn .3s;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .5);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: var(--radius);
+      width: 600px;
+      max-width: 95vw;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, .2);
+    }
+
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-muted);
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: var(--text);
+    }
+
+    /* Progress bar */
+    .progress {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width .5s ease;
+    }
+
+    .progress-fill.high {
+      background: var(--accent);
+    }
+
+    .progress-fill.medium {
+      background: var(--accent-amber);
+    }
+
+    .progress-fill.low {
+      background: var(--accent-green);
+    }
+
+    /* Notification dot animation */
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .5
+      }
+    }
+
+    .pulse {
+      animation: pulse 1.5s infinite;
+    }
+
+    @media(max-width:1200px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media(max-width:768px) {
+      .sidebar {
+        width: 64px;
+      }
+
+      .main {
+        margin-left: 64px;
+      }
+
+      .sidebar-logo h1,
+      .sidebar-logo p,
+      .sidebar-user .info,
+      .nav-label,
+      .section-label,
+      .sidebar-footer a span {
+        display: none;
+      }
+    }
+  </style>
+  {% block extra_styles %}{% endblock %}
+</head>
+
+<body>
+
+  {% block sidebar %}
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="emblem">
+        <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 100 100"
+          style="background:#fff;border-radius:50%;padding:4px;">
+          <text y="55" x="50" font-size="58" text-anchor="middle" font-family="serif">🏥</text>
+        </svg>
+        <div>
+          <h1>Ayushman Bharat</h1>
+          <p>Fraud Detection Agent</p>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-user" id="sidebar-user">
+      <div class="avatar" id="user-avatar">A</div>
+      <div class="info">
+        <span id="user-name">Admin</span>
+        <small><span class="role-badge role-admin" id="user-role">Admin</span></small>
+      </div>
+    </div>
+    <nav>
+      <div class="section-label">Main</div>
+      <a href="/dashboard" class="{% if active == 'dashboard' %}active{% endif %}">
+        <span class="icon">📊</span><span class="nav-label">Dashboard</span>
+      </a>
+      <a href="/upload" class="{% if active == 'upload' %}active{% endif %}">
+        <span class="icon">📤</span><span class="nav-label">Upload Claims</span>
+      </a>
+      <a href="/investigate" class="{% if active == 'investigate' %}active{% endif %}">
+        <span class="icon">🔍</span><span class="nav-label">Investigate</span>
+      </a>
+      <div class="section-label">Analysis</div>
+      <a href="/hospitals" class="{% if active == 'hospitals' %}active{% endif %}">
+        <span class="icon">🏥</span><span class="nav-label">Hospitals</span>
+      </a>
+      <a href="/reports" class="{% if active == 'reports' %}active{% endif %}">
+        <span class="icon">📄</span><span class="nav-label">Reports</span>
+      </a>
+      <div class="section-label">System</div>
+      <a href="/settings" class="{% if active == 'settings' %}active{% endif %}">
+        <span class="icon">⚙️</span><span class="nav-label">Settings</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="#" onclick="logout()">
+        <span>🚪</span><span>Logout</span>
+      </a>
+    </div>
+  </aside>
+  {% endblock %}
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <h2>{% block page_title %}Dashboard{% endblock %}</h2>
+        <p>{% block page_sub %}Ministry of Health & Family Welfare, Government of India{% endblock %}</p>
+      </div>
+      <div class="topbar-right">
+        <button class="alert-btn" onclick="toggleAlerts()" title="Alerts">
+          🔔
+          <span class="alert-badge" id="alert-count" style="display:none">0</span>
+        </button>
+        <div style="font-size:12px;color:var(--text-muted);text-align:right;">
+          <div id="clock" style="font-weight:600;font-size:14px;color:var(--text)">--:--:--</div>
+          <div id="datep">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Panel -->
+    <div class="alert-panel" id="alert-panel">
+      <div class="alert-header">
+        <span>🔔 Recent Alerts</span>
+        <button class="btn btn-sm btn-outline" onclick="markAllRead()" style="padding:2px 8px;font-size:11px;">Mark All
+          Read</button>
+      </div>
+      <div id="alert-list"></div>
+    </div>
+
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  {% block modal %}{% endblock %}
+
+  <script>
+    // ── Auth Checks ──────────────────────────────────────────────────────────────
+    function getToken() { return localStorage.getItem('token'); }
+    function getUser() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return { username: localStorage.getItem('username') || 'User', role: localStorage.getItem('role') || 'analyst' };
+        // Token is base64-encoded JSON (NOT a JWT) — decode the whole thing
+        return JSON.parse(atob(token));
+      } catch { return { username: localStorage.getItem('username') || 'User', role: localStorage.getItem('role') || 'analyst' }; }
+    }
+    function logout() { localStorage.removeItem('token'); localStorage.removeItem('username'); localStorage.removeItem('role'); window.location.href = '/'; }
+
+    // Redirect if not logged in
+    if (!getToken() && window.location.pathname !== '/') { logout(); }
+
+    // Load user info
+    (function initUser() {
+      const u = getUser();
+      if (u) {
+        const av = document.getElementById('user-avatar');
+        const nm = document.getElementById('user-name');
+        const rl = document.getElementById('user-role');
+        if (av) av.textContent = (u.username || 'A')[0].toUpperCase();
+        if (nm) nm.textContent = u.username || 'User';
+        if (rl) { rl.textContent = u.role || 'analyst'; rl.className = 'role-badge role-' + (u.role || 'analyst'); }
+      }
+    })();
+
+    // ── Clock ────────────────────────────────────────────────────────────────────
+    function updateClock() {
+      const now = new Date();
+      const clk = document.getElementById('clock');
+      const dp = document.getElementById('datep');
+      if (clk) clk.textContent = now.toLocaleTimeString('en-IN');
+      if (dp) dp.textContent = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    // ── Alerts ────────────────────────────────────────────────────────────────────
+    async function loadAlerts() {
+      try {
+        const res = await fetch('/api/alerts');
+        const alerts = await res.json();
+        const unread = alerts.filter(a => !a.is_read).length;
+        const badge = document.getElementById('alert-count');
+        if (badge) {
+          badge.textContent = unread;
+          badge.style.display = unread > 0 ? 'flex' : 'none';
+          if (unread > 0) badge.classList.add('pulse');
+        }
+        const list = document.getElementById('alert-list');
+        if (list) {
+          if (alerts.length === 0) {
+            list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;">No alerts</div>';
+          } else {
+            list.innerHTML = alerts.map(a => `
+          <div class="alert-item" data-id="${a.id}">
+            <div class="alert-dot ${a.is_read ? 'read' : ''}"></div>
+            <div>
+              <p>${a.message}</p>
+              <small>${new Date(a.created_at).toLocaleString('en-IN')}</small>
+            </div>
+          </div>`).join('');
+          }
+        }
+      } catch (e) { }
+    }
+    async function markAllRead() {
+      const items = document.querySelectorAll('.alert-item[data-id]');
+      for (const it of items) {
+        await fetch(`/api/alerts/${it.dataset.id}/read`, { method: 'POST' });
+      }
+      loadAlerts();
+    }
+    function toggleAlerts() {
+      const p = document.getElementById('alert-panel');
+      p.classList.toggle('show');
+      if (p.classList.contains('show')) loadAlerts();
+    }
+    document.addEventListener('click', e => {
+      const p = document.getElementById('alert-panel');
+      if (p && !p.contains(e.target) && !e.target.closest('.alert-btn')) {
+        p.classList.remove('show');
+      }
+    });
+    loadAlerts();
+    setInterval(loadAlerts, 15000);
+
+    // ── Toast ─────────────────────────────────────────────────────────────────────
+    function showToast(msg, duration = 3000) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, duration);
+    }
+
+    // ── API Helper ────────────────────────────────────────────────────────────────
+    async function apiFetch(url, opts = {}) {
+      const token = getToken();
+      if (token) opts.headers = { ...(opts.headers || {}), Authorization: 'Bearer ' + token };
+      const res = await fetch(url, opts);
+      if (res.status === 401) { logout(); return null; }
+      return res;
+    }
+
+    // ── WebSocket ─────────────────────────────────────────────────────────────────
+    let ws = null;
+    function connectWS() {
+      try {
+        ws = new WebSocket(`ws://${location.host}/ws`);
+        ws.onmessage = e => {
+          const d = JSON.parse(e.data);
+          if (d.event === 'upload_complete') {
+            showToast(`✅ Upload complete: ${d.total} claims processed`);
+            if (typeof onWsMessage === 'function') onWsMessage(d);
+          }
+        };
+        ws.onclose = () => setTimeout(connectWS, 3000);
+      } catch (e) { }
+    }
+    connectWS();
+
+    // ── Format helpers ────────────────────────────────────────────────────────────
+    function fmtCurrency(n) { return '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
+    function fmtNum(n) { return Number(n || 0).toLocaleString('en-IN'); }
+    function riskBadge(lvl) {
+      const m = { High: 'badge-high', Medium: 'badge-medium', Low: 'badge-low' };
+      return `<span class="badge ${m[lvl] || 'badge-pending'}">${lvl}</span>`;
+    }
+    function statusBadge(s) {
+      const m = { Pending: 'badge-pending', Approved: 'badge-approved', Rejected: 'badge-rejected' };
+      return `<span class="badge ${m[s] || 'badge-pending'}">${s}</span>`;
+    }
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+
+</html>

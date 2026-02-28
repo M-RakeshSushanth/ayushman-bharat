@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+{% set active = "upload" %}
+
+{% block title %}Upload Claims — Ayushman Bharat Fraud Detection{% endblock %}
+{% block page_title %}Upload Claims{% endblock %}
+{% block page_sub %}Upload CSV claim data for automated fraud detection analysis{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .drop-zone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 16px;
+        padding: 60px 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: .3s;
+        background: #fafbfc;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+        border-color: #2563eb;
+        background: #eff6ff;
+    }
+
+    .drop-icon {
+        font-size: 56px;
+        display: block;
+        margin-bottom: 16px;
+    }
+
+    .drop-zone h3 {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--primary-dark);
+        margin-bottom: 6px;
+    }
+
+    .drop-zone p {
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+
+    .file-info {
+        background: #eff6ff;
+        border: 1.5px solid #bfdbfe;
+        border-radius: 10px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 16px;
+        display: none;
+    }
+
+    .file-info .fi-icon {
+        font-size: 28px;
+    }
+
+    .file-info .fi-name {
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .file-info .fi-size {
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .column-check {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .col-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12.5px;
+    }
+
+    .col-item .col-status {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        flex-shrink: 0;
+    }
+
+    .col-item .col-status.ok {
+        background: #d1fae5;
+        color: #059669;
+    }
+
+    .col-item .col-status.miss {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .preview-table {
+        max-height: 300px;
+        overflow: auto;
+    }
+
+    .progress-bar {
+        height: 6px;
+        background: #e2e8f0;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 8px;
+    }
+
+    .progress-fill-anim {
+        height: 100%;
+        background: linear-gradient(90deg, #2563eb, #60a5fa);
+        border-radius: 3px;
+        animation: progressAnim 2s ease-in-out infinite;
+    }
+
+    @keyframes progressAnim {
+        0% {
+            width: 0%
+        }
+
+        50% {
+            width: 80%
+        }
+
+        100% {
+            width: 100%
+        }
+    }
+
+    .step-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        margin-bottom: 28px;
+    }
+
+    .step {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+    }
+
+    .step-dot {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        background: #fff;
+        color: var(--text-muted);
+        flex-shrink: 0;
+        transition: .3s;
+    }
+
+    .step-dot.active {
+        border-color: var(--primary-light);
+        background: var(--primary-light);
+        color: #fff;
+    }
+
+    .step-dot.done {
+        border-color: var(--accent-green);
+        background: var(--accent-green);
+        color: #fff;
+    }
+
+    .step-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .step-label.active {
+        color: var(--primary-dark);
+    }
+
+    .step-line {
+        flex: 1;
+        height: 2px;
+        background: #e2e8f0;
+        margin: 0 8px;
+    }
+
+    .step-line.done {
+        background: var(--accent-green);
+    }
+
+    .result-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .result-box {
+        border-radius: 10px;
+        padding: 16px;
+        text-align: center;
+    }
+
+    .result-box.total {
+        background: #eff6ff;
+    }
+
+    .result-box.high {
+        background: #fef2f2;
+    }
+
+    .result-box.medium {
+        background: #fffbeb;
+    }
+
+    .result-box.low {
+        background: #f0fdf4;
+    }
+
+    .result-box h3 {
+        font-size: 28px;
+        font-weight: 800;
+    }
+
+    .result-box p {
+        font-size: 12px;
+        font-weight: 500;
+        margin-top: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Step Indicator -->
+<div class="step-indicator mb-6" id="step-indicator">
+    <div class="step">
+        <div class="step-dot active" id="step1-dot">1</div>
+        <div class="step-label active" id="step1-label">Select File</div>
+    </div>
+    <div class="step-line" id="line1"></div>
+    <div class="step">
+        <div class="step-dot" id="step2-dot">2</div>
+        <div class="step-label" id="step2-label">Preview & Validate</div>
+    </div>
+    <div class="step-line" id="line2"></div>
+    <div class="step">
+        <div class="step-dot" id="step3-dot">3</div>
+        <div class="step-label" id="step3-label">Processing</div>
+    </div>
+    <div class="step-line" id="line3"></div>
+    <div class="step">
+        <div class="step-dot" id="step4-dot">✓</div>
+        <div class="step-label" id="step4-label">Results</div>
+    </div>
+</div>
+
+<!-- Step 1: Upload -->
+<div id="step-upload" class="card">
+    <div class="section-title">📤 Upload Claim Data</div>
+
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-input').click()">
+        <span class="drop-icon">☁️</span>
+        <h3>Drag & Drop your CSV file here</h3>
+        <p>or click to browse</p>
+        <p style="margin-top:8px;font-size:12px;color:#94a3b8;">Supported: .csv files up to 50MB</p>
+    </div>
+    <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="handleFile(this.files[0])">
+
+    <div class="file-info" id="file-info">
+        <span class="fi-icon">📄</span>
+        <div>
+            <div class="fi-name" id="fi-name">—</div>
+            <div class="fi-size" id="fi-size">—</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="clearFile()" style="margin-left:auto;">✕ Remove</button>
+    </div>
+
+    <!-- Required columns validation -->
+    <div class="card-sm mt-4">
+        <div class="section-title" style="font-size:13px;">📋 Required Columns</div>
+        <div class="column-check" id="col-check">
+            <div class="col-item">
+                <div class="col-status" id="col-Claim_ID">?</div>Claim_ID
+            </div>
+            <div class="col-item">
+                <div class="col-status" id="col-Patient_ID">?</div>Patient_ID
+            </div>
+            <div class="col-item">
+                <div class="col-status" id="col-Hospital_ID">?</div>Hospital_ID
+            </div>
+            <div class="col-item">
+                <div class="col-status" id="col-Doctor_ID">?</div>Doctor_ID
+            </div>
+            <div class="col-item">
+                <div class="col-status" id="col-Diagnosis_Code">?</div>Diagnosis_Code
+            </div>
+            <div class="col-item">
+                <div class="col-status" id="col-Treatment_Code">?</div>Treatment_Code
+            </div>
+            <div class="col-item">
+                <div class="col-status" id="col-Admission_Date">?</div>Admission_Date
+            </div>
+            <div class="col-item">
+                <div class="col-status" id="col-Discharge_Date">?</div>Discharge_Date
+            </div>
+            <div class="col-item">
+                <div class="col-status" id="col-Claim_Amount">?</div>Claim_Amount
+            </div>
+            <div class="col-item">
+                <div class="col-status" id="col-Approved_Amount">?</div>Approved_Amount
+            </div>
+            <div class="col-item">
+                <div class="col-status" id="col-Location">?</div>Location
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4 flex gap-3">
+        <button class="btn btn-outline" onclick="previewCSV()" id="preview-btn" disabled>👁️ Preview</button>
+        <button class="btn btn-primary" onclick="uploadAndProcess()" id="upload-btn" disabled>🚀 Analyze Claims</button>
+    </div>
+</div>
+
+<!-- Step 2: Preview -->
+<div id="step-preview" class="card" style="display:none;margin-top:20px;">
+    <div class="flex items-center justify-between mb-4">
+        <div class="section-title">👁️ Data Preview (first 5 rows)</div>
+        <span class="text-sm text-muted" id="preview-count">—</span>
+    </div>
+    <div class="preview-table table-wrap">
+        <table id="preview-table">
+            <thead>
+                <tr></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Step 3: Processing -->
+<div id="step-processing" class="card" style="display:none;margin-top:20px;">
+    <div style="text-align:center;padding:40px;">
+        <div style="font-size:64px;margin-bottom:16px;">🤖</div>
+        <h3 style="font-size:18px;font-weight:700;margin-bottom:8px;">Running Fraud Detection Engine</h3>
+        <p class="text-muted" style="margin-bottom:20px;">Isolation Forest model analyzing claim patterns...</p>
+        <div class="progress-bar">
+            <div class="progress-fill-anim" id="anim-bar"></div>
+        </div>
+        <p class="text-muted text-sm mt-4" id="proc-status">Initializing...</p>
+        <div style="margin-top:24px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap;">
+            <div style="text-align:center;">
+                <div style="font-size:22px;">✅</div>
+                <div style="font-size:12px;color:var(--text-muted);">Data Cleaning</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:22px;">🔄</div>
+                <div style="font-size:12px;color:var(--text-muted);">Feature Scaling</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:22px;">🧠</div>
+                <div style="font-size:12px;color:var(--text-muted);">ML Inference</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:22px;">📊</div>
+                <div style="font-size:12px;color:var(--text-muted);">Risk Scoring</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step 4: Results -->
+<div id="step-results" class="card" style="display:none;margin-top:20px;">
+    <div class="section-title">✅ Analysis Complete</div>
+    <div class="result-grid">
+        <div class="result-box total">
+            <h3 id="res-total">—</h3>
+            <p style="color:#2563eb;">Total Claims</p>
+        </div>
+        <div class="result-box high">
+            <h3 id="res-high" style="color:#dc2626;">—</h3>
+            <p style="color:#dc2626;">High Risk</p>
+        </div>
+        <div class="result-box medium">
+            <h3 id="res-medium" style="color:#d97706;">—</h3>
+            <p style="color:#d97706;">Medium Risk</p>
+        </div>
+        <div class="result-box low">
+            <h3 id="res-low" style="color:#059669;">—</h3>
+            <p style="color:#059669;">Low Risk</p>
+        </div>
+    </div>
+    <div class="flex gap-3 mt-4">
+        <a href="/dashboard" class="btn btn-primary">📊 View Dashboard</a>
+        <a href="/investigate" class="btn btn-outline">🔍 Investigate Claims</a>
+        <button class="btn btn-outline" onclick="resetUpload()">↩️ Upload Another</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const REQUIRED_COLS = ['Claim_ID', 'Patient_ID', 'Hospital_ID', 'Doctor_ID', 'Diagnosis_Code',
+        'Treatment_Code', 'Admission_Date', 'Discharge_Date', 'Claim_Amount', 'Approved_Amount', 'Location'];
+    let selectedFile = null;
+    let parsedData = null;
+
+    // Drag and drop
+    const dz = document.getElementById('drop-zone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+
+    function handleFile(file) {
+        if (!file || !file.name.endsWith('.csv')) { showToast('Please select a .csv file'); return; }
+        selectedFile = file;
+        document.getElementById('fi-name').textContent = file.name;
+        document.getElementById('fi-size').textContent = (file.size / 1024).toFixed(1) + ' KB · CSV';
+        document.getElementById('file-info').style.display = 'flex';
+        parseCSV(file);
+    }
+
+    function clearFile() {
+        selectedFile = null; parsedData = null;
+        document.getElementById('file-info').style.display = 'none';
+        document.getElementById('csv-input').value = '';
+        document.getElementById('step-preview').style.display = 'none';
+        document.getElementById('upload-btn').disabled = true;
+        document.getElementById('preview-btn').disabled = true;
+        REQUIRED_COLS.forEach(c => { const el = document.getElementById('col-' + c); if (el) { el.textContent = '?'; el.className = 'col-status'; } });
+    }
+
+    function parseCSV(file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const lines = e.target.result.split('\n').filter(l => l.trim());
+            if (lines.length < 2) { showToast('CSV appears empty'); return; }
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const rows = lines.slice(1, 6).map(l => l.split(',').map(c => c.trim().replace(/"/g, '')));
+            parsedData = { headers, rows, total: lines.length - 1 };
+            validateColumns(headers);
+            buildPreview(headers, rows, lines.length - 1);
+            document.getElementById('upload-btn').disabled = false;
+            document.getElementById('preview-btn').disabled = false;
+            setStep(2);
+        };
+        reader.readAsText(file);
+    }
+
+    function validateColumns(headers) {
+        let allOk = true;
+        REQUIRED_COLS.forEach(c => {
+            const el = document.getElementById('col-' + c);
+            const found = headers.some(h => h.toLowerCase() === c.toLowerCase());
+            if (el) { el.textContent = found ? '✓' : '✗'; el.className = 'col-status ' + (found ? 'ok' : 'miss'); }
+            if (!found) allOk = false;
+        });
+    }
+
+    function buildPreview(headers, rows, total) {
+        const table = document.getElementById('preview-table');
+        const thead = table.querySelector('thead tr');
+        const tbody = table.querySelector('tbody');
+        thead.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
+        tbody.innerHTML = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+        document.getElementById('preview-count').textContent = `${total} total rows`;
+    }
+
+    function previewCSV() {
+        const el = document.getElementById('step-preview');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function setStep(n) {
+        for (let i = 1; i <= 4; i++) {
+            const dot = document.getElementById(`step${i}-dot`);
+            const lbl = document.getElementById(`step${i}-label`);
+            const line = document.getElementById(`line${i}`);
+            if (!dot) continue;
+            if (i < n) { dot.className = 'step-dot done'; dot.textContent = '✓'; if (lbl) lbl.className = 'step-label'; if (line) line.className = 'step-line done'; }
+            else if (i === n) { dot.className = 'step-dot active'; if (n <= 4) dot.textContent = i; if (lbl) lbl.className = 'step-label active'; }
+            else { dot.className = 'step-dot'; dot.textContent = i; if (lbl) lbl.className = 'step-label'; }
+        }
+    }
+
+    async function uploadAndProcess() {
+        if (!selectedFile) { showToast('Select a file first'); return; }
+        document.getElementById('step-processing').style.display = 'block';
+        document.getElementById('step-preview').style.display = 'none';
+        setStep(3);
+
+        const statuses = ['Cleaning and validating data...', 'Scaling features for ML model...', 'Running Isolation Forest analysis...', 'Computing risk scores...', 'Saving results to database...'];
+        let si = 0;
+        const si_int = setInterval(() => {
+            document.getElementById('proc-status').textContent = statuses[si++ % statuses.length];
+        }, 1200);
+
+        const fd = new FormData();
+        fd.append('file', selectedFile);
+        try {
+            const res = await apiFetch('/api/upload', { method: 'POST', body: fd });
+            clearInterval(si_int);
+            if (!res || !res.ok) { const err = await res.json(); throw new Error(err.detail || 'Upload failed'); }
+            const d = await res.json();
+            document.getElementById('step-processing').style.display = 'none';
+            document.getElementById('step-results').style.display = 'block';
+            document.getElementById('res-total').textContent = d.total;
+            document.getElementById('res-high').textContent = d.high;
+            document.getElementById('res-medium').textContent = d.medium;
+            document.getElementById('res-low').textContent = d.low;
+            setStep(4);
+            showToast('✅ Analysis complete!');
+        } catch (ex) {
+            clearInterval(si_int);
+            document.getElementById('step-processing').style.display = 'none';
+            showToast('❌ Error: ' + ex.message, 5000);
+            setStep(2);
+        }
+    }
+
+    function resetUpload() {
+        clearFile();
+        document.getElementById('step-results').style.display = 'none';
+        document.getElementById('step-processing').style.display = 'none';
+        setStep(1);
+    }
+</script>
+{% endblock %}
